@@ -67,6 +67,11 @@ import org.heigit.ors.routing.graphhopper.extensions.storages.builders.GraphStor
 import org.heigit.ors.routing.graphhopper.extensions.util.ORSParameters;
 import org.heigit.ors.routing.parameters.ProfileParameters;
 import org.heigit.ors.routing.pathprocessors.ORSPathProcessorFactory;
+import org.heigit.ors.shortestpathtree.ShortestPathTreeBuilder;
+import org.heigit.ors.shortestpathtree.ShortestPathTreeMap;
+import org.heigit.ors.shortestpathtree.QuadTree;
+import org.heigit.ors.config.IsochronesServiceSettings;
+import org.heigit.ors.config.MatrixServiceSettings;
 import org.heigit.ors.util.DebugUtility;
 import org.heigit.ors.util.RuntimeUtility;
 import org.heigit.ors.util.StringUtility;
@@ -1422,6 +1427,36 @@ public class RoutingProfile {
             }
         }
         return result;
+    }
+
+    public QuadTree buildMultiGraph(IsochroneSearchParameters parameters) throws Exception {
+        QuadTree result;
+        waitForUpdateCompletion();
+        beginUseGH();
+        try {
+            RouteSearchContext searchCntx = createSearchContext(parameters.getRouteParameters());
+            ShortestPathTreeBuilder builder = new ShortestPathTreeBuilder(searchCntx);
+            result = builder.compute(parameters);
+            endUseGH();
+        } catch (Exception ex) {
+            endUseGH();
+            if (DebugUtility.isDebug()) {
+                LOGGER.error(ex);
+            }
+            throw new InternalServerException(IsochronesErrorCodes.UNKNOWN, "Unable to build an isochrone map.");
+        }
+        return result;
+    }
+
+    public Weighting createTurnWeighting(Graph graph, Weighting weighting, TraversalMode tMode, double uTurnCosts) {
+        if (!(weighting instanceof TurnWeighting)) {
+            FlagEncoder encoder = weighting.getFlagEncoder();
+            if (encoder.supports(TurnWeighting.class) && tMode.isEdgeBased()) {
+                return new TurnWeighting(weighting, HelperORS.getTurnCostExtensions(graph.getExtension()), uTurnCosts);
+            }
+        }
+
+        return weighting;
     }
 
     public boolean equals(Object o) {

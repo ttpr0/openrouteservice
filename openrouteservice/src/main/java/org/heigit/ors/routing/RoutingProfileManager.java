@@ -38,6 +38,8 @@ import org.heigit.ors.routing.configuration.RoutingManagerConfiguration;
 import org.heigit.ors.routing.graphhopper.extensions.storages.ExpiringSpeedStorage;
 import org.heigit.ors.routing.graphhopper.extensions.storages.GraphStorageUtils;
 import org.heigit.ors.routing.pathprocessors.ExtraInfoProcessor;
+import org.heigit.ors.shortestpathtree.ShortestPathTreeMap;
+import org.heigit.ors.shortestpathtree.QuadTree;
 import org.heigit.ors.config.RoutingServiceSettings;
 import org.heigit.ors.util.FormatUtility;
 import org.heigit.ors.util.RuntimeUtility;
@@ -639,6 +641,14 @@ public class RoutingProfileManager {
         RoutingProfile rp = routeProfiles.getRouteProfile(profileType, false);
 
         return rp.buildIsochrone(parameters);
+    }
+
+    public QuadTree buildMultiGraph(IsochroneSearchParameters parameters) throws Exception {
+
+        int profileType = parameters.getRouteParameters().getProfileType();
+        RoutingProfile rp = routeProfiles.getRouteProfile(profileType, false);
+
+        return rp.buildMultiGraph(parameters);
     }
 
     public MatrixResult computeMatrix(MatrixRequest req) throws Exception {
