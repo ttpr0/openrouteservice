@@ -1,8 +1,8 @@
-package org.heigit.ors.shortestpathtree;
+package org.heigit.ors.isorasters;
 
 import com.vividsolutions.jts.geom.Coordinate;
 
-public class GeoJsonPoint {
+public class GeoJsonPoint extends GeoJsonFeature {
     public String type = "Feature";
     public properties properties;
     public geometry geometry;

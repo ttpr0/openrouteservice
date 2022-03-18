@@ -28,6 +28,9 @@ import org.heigit.ors.export.ExportRequest;
 import org.heigit.ors.export.ExportResult;
 import org.heigit.ors.isochrones.IsochroneMap;
 import org.heigit.ors.isochrones.IsochroneSearchParameters;
+import org.heigit.ors.isorasters.IsoRasterMap;
+import org.heigit.ors.isorasters.IsoRasterSearchParameters;
+import org.heigit.ors.isorasters.QuadTree;
 import org.heigit.ors.kafka.ORSKafkaConsumerMessageSpeedUpdate;
 import org.heigit.ors.mapmatching.MapMatchingRequest;
 import org.heigit.ors.matrix.MatrixErrorCodes;
@@ -38,8 +41,6 @@ import org.heigit.ors.routing.configuration.RoutingManagerConfiguration;
 import org.heigit.ors.routing.graphhopper.extensions.storages.ExpiringSpeedStorage;
 import org.heigit.ors.routing.graphhopper.extensions.storages.GraphStorageUtils;
 import org.heigit.ors.routing.pathprocessors.ExtraInfoProcessor;
-import org.heigit.ors.shortestpathtree.ShortestPathTreeMap;
-import org.heigit.ors.shortestpathtree.QuadTree;
 import org.heigit.ors.config.RoutingServiceSettings;
 import org.heigit.ors.util.FormatUtility;
 import org.heigit.ors.util.RuntimeUtility;
@@ -643,7 +644,7 @@ public class RoutingProfileManager {
         return rp.buildIsochrone(parameters);
     }
 
-    public QuadTree buildMultiGraph(IsochroneSearchParameters parameters) throws Exception {
+    public QuadTree buildMultiGraph(IsoRasterSearchParameters parameters) throws Exception {
 
         int profileType = parameters.getRouteParameters().getProfileType();
         RoutingProfile rp = routeProfiles.getRouteProfile(profileType, false);

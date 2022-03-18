@@ -1,4 +1,4 @@
-package org.heigit.ors.shortestpathtree;
+package org.heigit.ors.isorasters;
 
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.cursors.ObjectCursor;

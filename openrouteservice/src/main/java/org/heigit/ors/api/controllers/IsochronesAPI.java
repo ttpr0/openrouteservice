@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 
+@CrossOrigin
 @RestController
 @Api(value = "Isochrones Service", tags = "Isochrones")
 @SwaggerDefinition(tags = {

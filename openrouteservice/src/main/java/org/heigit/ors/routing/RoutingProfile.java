@@ -52,6 +52,11 @@ import org.heigit.ors.isochrones.statistics.StatisticsProvider;
 import org.heigit.ors.isochrones.statistics.StatisticsProviderConfiguration;
 import org.heigit.ors.isochrones.statistics.StatisticsProviderFactory;
 import org.heigit.ors.mapmatching.MapMatcher;
+import org.heigit.ors.isorasters.IsoRasterBuilder;
+import org.heigit.ors.isorasters.IsoRasterMap;
+import org.heigit.ors.isorasters.IsoRasterSearchParameters;
+import org.heigit.ors.isorasters.QuadTree;
+import org.heigit.ors.isorasters.Rasterizer;
 import org.heigit.ors.matrix.*;
 import org.heigit.ors.matrix.algorithms.core.CoreMatrixAlgorithm;
 import org.heigit.ors.matrix.algorithms.dijkstra.DijkstraMatrixAlgorithm;
@@ -67,9 +72,6 @@ import org.heigit.ors.routing.graphhopper.extensions.storages.builders.GraphStor
 import org.heigit.ors.routing.graphhopper.extensions.util.ORSParameters;
 import org.heigit.ors.routing.parameters.ProfileParameters;
 import org.heigit.ors.routing.pathprocessors.ORSPathProcessorFactory;
-import org.heigit.ors.shortestpathtree.ShortestPathTreeBuilder;
-import org.heigit.ors.shortestpathtree.ShortestPathTreeMap;
-import org.heigit.ors.shortestpathtree.QuadTree;
 import org.heigit.ors.config.IsochronesServiceSettings;
 import org.heigit.ors.config.MatrixServiceSettings;
 import org.heigit.ors.util.DebugUtility;
@@ -1429,13 +1431,13 @@ public class RoutingProfile {
         return result;
     }
 
-    public QuadTree buildMultiGraph(IsochroneSearchParameters parameters) throws Exception {
+    public QuadTree buildMultiGraph(IsoRasterSearchParameters parameters) throws Exception {
         QuadTree result;
         waitForUpdateCompletion();
         beginUseGH();
         try {
             RouteSearchContext searchCntx = createSearchContext(parameters.getRouteParameters());
-            ShortestPathTreeBuilder builder = new ShortestPathTreeBuilder(searchCntx);
+            IsoRasterBuilder builder = new IsoRasterBuilder(searchCntx, parameters.getRasterizer());
             result = builder.compute(parameters);
             endUseGH();
         } catch (Exception ex) {

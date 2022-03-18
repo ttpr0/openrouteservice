@@ -1,6 +1,6 @@
-package org.heigit.ors.shortestpathtree;
+package org.heigit.ors.isorasters;
 
-import static org.heigit.ors.shortestpathtree.ShortestPathTree.IsoLabel;
+import static org.heigit.ors.isorasters.ShortestPathTree.IsoLabel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,13 +8,15 @@ import java.util.function.Consumer;
 import com.graphhopper.storage.NodeAccess;
 import com.vividsolutions.jts.geom.Coordinate;
 
-public class ShortestPathTreeConsumer<T> implements Consumer{
+public class IsoRasterConsumer<T> implements Consumer{
 
     private QuadTree tree;
     private NodeAccess access;
+    private Rasterizer rasterizer;
 
-    public ShortestPathTreeConsumer()
+    public IsoRasterConsumer(Rasterizer rasterizer)
     {
+        this.rasterizer = rasterizer;
         this.tree = new QuadTree();
     }
 
@@ -27,7 +29,9 @@ public class ShortestPathTreeConsumer<T> implements Consumer{
     public void accept(Object t) {
         // TODO Auto-generated method stub
         IsoLabel label = (IsoLabel)t;
-        this.tree.insert(Utility.coordToIndex(access.getLon(label.node)), Utility.coordToIndex(access.getLat(label.node)), (int)label.time);
+        double[] point = {access.getLon(label.node), access.getLat(label.node)};
+        rasterizer.coordToIndex(point);
+        this.tree.insert((int)point[0], (int)point[1], (int)label.time);
     }
     
     public QuadTree getTree()

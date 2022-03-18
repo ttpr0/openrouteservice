@@ -1,4 +1,4 @@
-package org.heigit.ors.shortestpathtree;
+package org.heigit.ors.isorasters;
 
 import java.util.ArrayList;
 import java.util.List;

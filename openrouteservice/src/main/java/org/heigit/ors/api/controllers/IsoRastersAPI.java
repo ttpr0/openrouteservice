@@ -6,12 +6,12 @@ import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import org.heigit.ors.api.errors.CommonResponseEntityExceptionHandler;
 import org.heigit.ors.api.requests.common.APIEnums;
-import org.heigit.ors.api.requests.shortestpathtree.ShortestPathTreeRequest;
+import org.heigit.ors.api.requests.isoraster.IsoRastersRequest;
 import org.heigit.ors.api.responses.isochrones.geojson.GeoJSONIsochronesResponse;
 import org.heigit.ors.exceptions.*;
 import org.heigit.ors.isochrones.IsochroneMapCollection;
 import org.heigit.ors.isochrones.IsochronesErrorCodes;
-import org.heigit.ors.shortestpathtree.ShortestPathTreeMap;
+import org.heigit.ors.isorasters.IsoRasterMap;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -24,7 +24,7 @@ import javax.servlet.http.HttpServletResponse;
 @CrossOrigin
 @RestController
 @RequestMapping("/v2/shortestpathtree")
-public class ShortestPathTreeAPI {
+public class IsoRastersAPI {
     static final CommonResponseEntityExceptionHandler errorHandler = new CommonResponseEntityExceptionHandler(IsochronesErrorCodes.BASE);
 
     // generic catch methods - when extra info is provided in the url, the other methods are accessed.
@@ -34,7 +34,7 @@ public class ShortestPathTreeAPI {
     }
 
     @PostMapping
-    public String getPostMapping(@RequestBody ShortestPathTreeRequest request) throws MissingParameterException {
+    public String getPostMapping(@RequestBody IsoRastersRequest request) throws MissingParameterException {
         throw new MissingParameterException(IsochronesErrorCodes.MISSING_PARAMETER, "profile");
     }
 
@@ -46,16 +46,16 @@ public class ShortestPathTreeAPI {
 
     // Functional request methods
     @PostMapping(value = "/{profile}", produces = "application/geo+json;charset=UTF-8")
-    public ShortestPathTreeMap getDefaultIsochrones(
+    public IsoRasterMap getDefaultIsochrones(
             @PathVariable APIEnums.Profile profile,
-            @RequestBody ShortestPathTreeRequest request) throws Exception {
+            @RequestBody IsoRastersRequest request) throws Exception {
         return getGeoJsonIsochrones(profile, request);
     }
 
     @PostMapping(value = "/{profile}/geojson", produces = "application/geo+json;charset=UTF-8")
-    public ShortestPathTreeMap getGeoJsonIsochrones(
+    public IsoRasterMap getGeoJsonIsochrones(
             @PathVariable APIEnums.Profile profile,
-            @RequestBody ShortestPathTreeRequest request) throws Exception {
+            @RequestBody IsoRastersRequest request) throws Exception {
         request.setProfile(profile);
         request.setResponseType(APIEnums.RouteResponseType.GEOJSON);
 

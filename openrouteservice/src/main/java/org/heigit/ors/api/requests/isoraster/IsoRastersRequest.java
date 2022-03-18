@@ -1,4 +1,4 @@
-package org.heigit.ors.api.requests.shortestpathtree;
+package org.heigit.ors.api.requests.isoraster;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -19,14 +19,19 @@ import org.heigit.ors.exceptions.ParameterOutOfRangeException;
 import org.heigit.ors.exceptions.ParameterValueException;
 import org.heigit.ors.exceptions.StatusCodeException;
 import org.heigit.ors.isochrones.*;
+import org.heigit.ors.isorasters.GeoJsonFeature;
+import org.heigit.ors.isorasters.GeoJsonPoint;
+import org.heigit.ors.isorasters.GeoJsonPolygon;
+import org.heigit.ors.isorasters.IsoRasterMap;
+import org.heigit.ors.isorasters.IsoRasterRequest;
+import org.heigit.ors.isorasters.IsoRasterSearchParameters;
+import org.heigit.ors.isorasters.QuadNode;
+import org.heigit.ors.isorasters.QuadTree;
+import org.heigit.ors.isorasters.Rasterizer;
+import org.heigit.ors.isorasters.Utility;
 import org.heigit.ors.routing.RouteSearchParameters;
 import org.heigit.ors.routing.RoutingProfileManager;
 import org.heigit.ors.routing.RoutingProfileType;
-import org.heigit.ors.shortestpathtree.GeoJsonPoint;
-import org.heigit.ors.shortestpathtree.ShortestPathTreeMap;
-import org.heigit.ors.shortestpathtree.QuadNode;
-import org.heigit.ors.shortestpathtree.QuadTree;
-import org.heigit.ors.shortestpathtree.Utility;
 import org.heigit.ors.config.IsochronesServiceSettings;
 import org.heigit.ors.util.DistanceUnitUtil;
 import org.heigit.ors.api.requests.isochrones.IsochronesRequestEnums;
@@ -39,10 +44,9 @@ import java.util.LinkedList;
 import static org.heigit.ors.api.requests.isochrones.IsochronesRequestEnums.CalculationMethod.CONCAVE_BALLS;
 import static org.heigit.ors.api.requests.isochrones.IsochronesRequestEnums.CalculationMethod.FASTISOCHRONE;
 
-
 @ApiModel(value = "IsochronesRequest", description = "The JSON body request sent to the isochrones service which defines options and parameters regarding the isochrones to generate.")
 @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-public class ShortestPathTreeRequest extends APIRequest {
+public class IsoRastersRequest extends APIRequest {
     public static final String PARAM_LOCATIONS = "locations";
     public static final String PARAM_LOCATION_TYPE = "location_type";
     public static final String PARAM_OPTIONS = "options";
@@ -55,6 +59,8 @@ public class ShortestPathTreeRequest extends APIRequest {
     public static final String PARAM_INTERVAL = "interval";
     public static final String PARAM_SMOOTHING = "smoothing";
     public static final String PARAM_TIME = "time";
+    public static final String PARAM_PRECESSION = "precession";
+    public static final String PARAM_CRS = "crs";
 
 
     @ApiModelProperty(name = PARAM_LOCATIONS, value = "The locations to use for the route as an array of `longitude/latitude` pairs",
@@ -168,10 +174,23 @@ public class ShortestPathTreeRequest extends APIRequest {
     @JsonIgnore
     private IsochroneMapCollection isoMaps;
     @JsonIgnore
-    private IsochroneRequest isochroneRequest;
+    private IsoRasterRequest rasterRequest;
+
+    @JsonProperty(PARAM_PRECESSION)
+    private double precession;
+    @JsonIgnore
+    private boolean hasPrecession = false;
+
+    @JsonProperty(PARAM_CRS)
+    private String crs;
+    @JsonIgnore
+    private boolean hasCrs = false;
+
+    @JsonIgnore
+    Rasterizer rasterizer;
 
     @JsonCreator
-    public ShortestPathTreeRequest() {
+    public IsoRastersRequest() {
     }
 
     static String[] convertAttributes(IsochronesRequestEnums.Attributes[] attributes) {
@@ -354,23 +373,41 @@ public class ShortestPathTreeRequest extends APIRequest {
         return hasTime;
     }
 
-    public ShortestPathTreeMap generateMultiGraphFromRequest() throws Exception {
-        this.isochroneRequest = this.convertIsochroneRequest();
+    public void setPrecession(double precession) {
+        this.precession = precession;
+        hasPrecession = true;
+    }
+
+    public boolean hasPrecession() {
+        return hasPrecession;
+    }
+
+    public void setCrs(String crs) {
+        this.crs = crs;
+        hasCrs = true;
+    }
+
+    public boolean hasCrs() {
+        return hasCrs;
+    }
+
+    public IsoRasterMap generateMultiGraphFromRequest() throws Exception {
+        this.rasterRequest = this.convertIsochroneRequest();
         // request object is built, now check if ors config allows all settings
-        List<TravellerInfo> travellers = this.isochroneRequest.getTravellers();
-
+        List<TravellerInfo> travellers = this.rasterRequest.getTravellers();
+    
         // TODO where should we put the validation code?
-        validateAgainstConfig(this.isochroneRequest, travellers);
-
+        validateAgainstConfig(this.rasterRequest, travellers);
+    
         List<QuadTree> trees = new LinkedList<QuadTree>();
         if (!travellers.isEmpty()) {
-
+    
             for (int i = 0; i < travellers.size(); ++i) {
-                IsochroneSearchParameters searchParams = this.isochroneRequest.getSearchParameters(i);
+                IsoRasterSearchParameters searchParams = this.rasterRequest.getSearchParameters(i);
                 QuadTree tree = RoutingProfileManager.getInstance().buildMultiGraph(searchParams);
                 trees.add(tree);
             }
-
+    
         }
         QuadTree tree = trees.get(0);
         for (int i=1; i<trees.size(); i++)
@@ -378,13 +415,35 @@ public class ShortestPathTreeRequest extends APIRequest {
             tree.mergeQuadNodes(trees.get(i).toList());
         }
         List<QuadNode> nodelist = tree.toList();
-        GeoJsonPoint[] points = new GeoJsonPoint[nodelist.size()];
+        // GeoJsonPoint[] points = new GeoJsonPoint[nodelist.size()];
+        // for (int i=0; i<points.length; i++) 
+        // {
+        //     QuadNode node = nodelist.get(i);
+        //     points[i] = new GeoJsonPoint(node.value, new Coordinate(Utility.indexToCoord(node.x), Utility.indexToCoord(node.y)));
+        // }
+        GeoJsonFeature[] points = new GeoJsonPolygon[nodelist.size()];
+        Rasterizer rasterizer = rasterRequest.getRasterizer();
         for (int i=0; i<points.length; i++) 
         {
             QuadNode node = nodelist.get(i);
-            points[i] = new GeoJsonPoint(node.value, new Coordinate(Utility.indexToCoord(node.x), Utility.indexToCoord(node.y)));
+            Double[][][] p = new Double[1][5][2];
+            double[] r = {node.x, node.y};
+            double[] or = {node.x + 1, node.y + 1};
+            rasterizer.indexToCoord(r);
+            rasterizer.indexToCoord(or);
+            p[0][0][0] = r[0];
+            p[0][0][1] = r[1];
+            p[0][1][0] = or[0];
+            p[0][1][1] = r[1];
+            p[0][2][0] = or[0];
+            p[0][2][1] = or[1];
+            p[0][3][0] = r[0];
+            p[0][3][1] = or[1];
+            p[0][4][0] = r[0];
+            p[0][4][1] = r[1];
+            points[i] = new GeoJsonPolygon(node.value, p);
         }
-        ShortestPathTreeMap multimap = new ShortestPathTreeMap(points);
+        IsoRasterMap multimap = new IsoRasterMap(points);
         return multimap;
     }
 
@@ -392,7 +451,7 @@ public class ShortestPathTreeRequest extends APIRequest {
         float f = (float) smoothingValue.doubleValue();
 
         if (smoothingValue < 0 || smoothingValue > 100)
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_SMOOTHING, smoothingValue.toString());
+            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_SMOOTHING, smoothingValue.toString());
 
         return f;
     }
@@ -408,7 +467,7 @@ public class ShortestPathTreeRequest extends APIRequest {
                 value = IsochronesRequestEnums.LocationType.START;
                 break;
             default:
-                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_LOCATION_TYPE, locationType.toString());
+                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_LOCATION_TYPE, locationType.toString());
         }
 
         return value.toString();
@@ -425,7 +484,7 @@ public class ShortestPathTreeRequest extends APIRequest {
                 travelRangeType = TravelRangeType.TIME;
                 break;
             default:
-                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_RANGE_TYPE, rangeType.toString());
+                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_RANGE_TYPE, rangeType.toString());
         }
 
         return travelRangeType;
@@ -438,12 +497,12 @@ public class ShortestPathTreeRequest extends APIRequest {
         try {
             convertedAreaUnit = DistanceUnitUtil.getFromString(unitsIn.toString(), DistanceUnit.UNKNOWN);
             if (convertedAreaUnit == DistanceUnit.UNKNOWN)
-                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_AREA_UNITS, unitsIn.toString());
+                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_AREA_UNITS, unitsIn.toString());
 
             return DistanceUnitUtil.toString(convertedAreaUnit);
 
         } catch (Exception e) {
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_AREA_UNITS, unitsIn.toString());
+            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_AREA_UNITS, unitsIn.toString());
         }
     }
 
@@ -453,9 +512,9 @@ public class ShortestPathTreeRequest extends APIRequest {
         try {
             units = DistanceUnitUtil.getFromString(unitsIn.toString(), DistanceUnit.UNKNOWN);
             if (units == DistanceUnit.UNKNOWN)
-                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_RANGE_UNITS, unitsIn.toString());
+                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_RANGE_UNITS, unitsIn.toString());
         } catch (Exception e) {
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_RANGE_UNITS, unitsIn.toString());
+            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_RANGE_UNITS, unitsIn.toString());
         }
         return DistanceUnitUtil.toString(units);
 
@@ -464,18 +523,18 @@ public class ShortestPathTreeRequest extends APIRequest {
     Coordinate convertSingleCoordinate(Double[] coordinate) throws ParameterValueException {
         Coordinate realCoordinate;
         if (coordinate.length != 2) {
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_LOCATIONS);
+            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_LOCATIONS);
         }
         try {
             realCoordinate = new Coordinate(coordinate[0], coordinate[1]);
         } catch (Exception e) {
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_LOCATIONS);
+            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_LOCATIONS);
         }
         return realCoordinate;
     }
 
-    IsochroneRequest convertIsochroneRequest() throws Exception {
-        IsochroneRequest convertedIsochroneRequest = new IsochroneRequest();
+    IsoRasterRequest convertIsochroneRequest() throws Exception {
+        IsoRasterRequest convertedIsochroneRequest = new IsoRasterRequest();
 
 
         for (int i = 0; i < locations.length; i++) {
@@ -485,7 +544,7 @@ public class ShortestPathTreeRequest extends APIRequest {
             try {
                 convertedIsochroneRequest.addTraveller(travellerInfo);
             } catch (Exception ex) {
-                throw new InternalServerException(IsochronesErrorCodes.UNKNOWN, ShortestPathTreeRequest.PARAM_INTERVAL);
+                throw new InternalServerException(IsochronesErrorCodes.UNKNOWN, IsoRastersRequest.PARAM_INTERVAL);
             }
         }
         if (this.hasId())
@@ -504,8 +563,14 @@ public class ShortestPathTreeRequest extends APIRequest {
             convertedIsochroneRequest.setCalcMethod(convertCalcMethod(CONCAVE_BALLS));
         else
             convertedIsochroneRequest.setCalcMethod(convertCalcMethod(FASTISOCHRONE));
+        convertedIsochroneRequest.setRasterizer(constructRasterizer());
         return convertedIsochroneRequest;
 
+    }
+
+    Rasterizer constructRasterizer()
+    {
+        return new Rasterizer(hasPrecession() ? this.precession : 0.05, hasCrs() ? this.crs : "4326");
     }
 
     TravellerInfo constructTravellerInfo(Double[] coordinate) throws Exception {
@@ -521,7 +586,7 @@ public class ShortestPathTreeRequest extends APIRequest {
         travellerInfo.getRanges();
         //range + interval
         if (range == null) {
-            throw new ParameterValueException(IsochronesErrorCodes.MISSING_PARAMETER, ShortestPathTreeRequest.PARAM_RANGE);
+            throw new ParameterValueException(IsochronesErrorCodes.MISSING_PARAMETER, IsoRastersRequest.PARAM_RANGE);
         }
         List<Double> rangeValues = range;
         Double intervalValue = interval;
@@ -535,11 +600,11 @@ public class ShortestPathTreeRequest extends APIRequest {
         try {
             profileType = convertToIsochronesProfileType(this.getProfile());
         } catch (Exception e) {
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_PROFILE);
+            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_PROFILE);
         }
 
         if (profileType == RoutingProfileType.UNKNOWN)
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, ShortestPathTreeRequest.PARAM_PROFILE);
+            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_PROFILE);
         routeSearchParameters.setProfileType(profileType);
 
         if (this.hasOptions()) {
@@ -561,23 +626,23 @@ public class ShortestPathTreeRequest extends APIRequest {
         return parameters;
     }
 
-    void validateAgainstConfig(IsochroneRequest isochroneRequest, List<TravellerInfo> travellers) throws StatusCodeException {
+    void validateAgainstConfig(IsoRasterRequest isochroneRequest, List<TravellerInfo> travellers) throws StatusCodeException {
 
         if (!IsochronesServiceSettings.getAllowComputeArea() && isochroneRequest.hasAttribute("area"))
             throw new StatusCodeException(StatusCode.BAD_REQUEST, IsochronesErrorCodes.FEATURE_NOT_SUPPORTED, "Area computation is not enabled.");
 
         if (travellers.size() > IsochronesServiceSettings.getMaximumLocations())
-            throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, ShortestPathTreeRequest.PARAM_LOCATIONS, Integer.toString(travellers.size()), Integer.toString(IsochronesServiceSettings.getMaximumLocations()));
+            throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, IsoRastersRequest.PARAM_LOCATIONS, Integer.toString(travellers.size()), Integer.toString(IsochronesServiceSettings.getMaximumLocations()));
 
         for (TravellerInfo traveller : travellers) {
             int maxAllowedRange = IsochronesServiceSettings.getMaximumRange(traveller.getRouteSearchParameters().getProfileType(), isochroneRequest.getCalcMethod(), traveller.getRangeType());
             double maxRange = traveller.getMaximumRange();
             if (maxRange > maxAllowedRange)
-                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, ShortestPathTreeRequest.PARAM_RANGE, Double.toString(maxRange), Integer.toString(maxAllowedRange));
+                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, IsoRastersRequest.PARAM_RANGE, Double.toString(maxRange), Integer.toString(maxAllowedRange));
 
             int maxIntervals = IsochronesServiceSettings.getMaximumIntervals();
             if (maxIntervals > 0 && maxIntervals < traveller.getRanges().length) {
-                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MINIMUM, ShortestPathTreeRequest.PARAM_INTERVAL, "Resulting number of " + traveller.getRanges().length + " isochrones exceeds maximum value of " + maxIntervals + ".");
+                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MINIMUM, IsoRastersRequest.PARAM_INTERVAL, "Resulting number of " + traveller.getRanges().length + " isochrones exceeds maximum value of " + maxIntervals + ".");
             }
         }
 
@@ -608,7 +673,7 @@ public class ShortestPathTreeRequest extends APIRequest {
 
         if (rangeValues.size() == 1 && rangeValue != -1 && intervalValue != null) {
             if (intervalValue > rangeValue) {
-                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, ShortestPathTreeRequest.PARAM_INTERVAL, Double.toString(intervalValue), Double.toString(rangeValue));
+                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, IsoRastersRequest.PARAM_INTERVAL, Double.toString(intervalValue), Double.toString(rangeValue));
             }
             travellerInfo.setRanges(rangeValue, intervalValue);
         }
@@ -635,7 +700,7 @@ public class ShortestPathTreeRequest extends APIRequest {
         return isoMaps;
     }
 
-    public IsochroneRequest getIsochroneRequest() {
-        return isochroneRequest;
+    public IsoRasterRequest getIsochroneRequest() {
+        return rasterRequest;
     }
 }

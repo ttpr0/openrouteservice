@@ -1,4 +1,4 @@
-package org.heigit.ors.shortestpathtree;
+package org.heigit.ors.isorasters;
 
 
 import org.heigit.ors.isochrones.IsochroneSearchParameters;
@@ -8,7 +8,6 @@ import org.heigit.ors.routing.RouteSearchContext;
 import org.heigit.ors.routing.graphhopper.extensions.ORSEdgeFilterFactory;
 import org.heigit.ors.routing.graphhopper.extensions.edgefilters.AvoidFeaturesEdgeFilter;
 import org.heigit.ors.routing.graphhopper.extensions.edgefilters.EdgeFilterSequence;
-import org.heigit.ors.shortestpathtree.ShortestPathTree;
 
 import com.graphhopper.util.*;
 import com.vividsolutions.jts.geom.*;
@@ -17,13 +16,15 @@ import com.graphhopper.routing.util.TraversalMode;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
 import org.heigit.ors.isochrones.builders.concaveballs.PointItemVisitor;
+import org.heigit.ors.isorasters.ShortestPathTree;
+
 import com.graphhopper.storage.index.QueryResult;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
 
-public class ShortestPathTreeBuilder {
+public class IsoRasterBuilder {
     private static DistanceCalc dcFast = new DistancePlaneProjection();
     private double searchWidth = 0.0007;
     private double pointWidth = 0.0005;
@@ -32,16 +33,16 @@ public class ShortestPathTreeBuilder {
     private List<Coordinate> prevIsoPoints = null;
     private PointItemVisitor visitor = null;
     private TreeSet<Coordinate> treeSet;
-    private ShortestPathTreeConsumer consumer;
+    private IsoRasterConsumer consumer;
     private RouteSearchContext searchcontext;
 
-    public ShortestPathTreeBuilder(RouteSearchContext searchContext)
+    public IsoRasterBuilder(RouteSearchContext searchContext, Rasterizer rasterizer)
     {
         this.searchcontext = searchContext;
-        this.consumer = new ShortestPathTreeConsumer<ShortestPathTree.IsoLabel>();
+        this.consumer = new IsoRasterConsumer<ShortestPathTree.IsoLabel>(rasterizer);
     }
 
-    public QuadTree compute(IsochroneSearchParameters parameters) throws Exception {
+    public QuadTree compute(IsoRasterSearchParameters parameters) throws Exception {
         Graph graph = searchcontext.getGraphHopper().getGraphHopperStorage().getBaseGraph();
         Weighting weighting = IsochroneWeightingFactory.createIsochroneWeighting(searchcontext, parameters.getRangeType());
 
