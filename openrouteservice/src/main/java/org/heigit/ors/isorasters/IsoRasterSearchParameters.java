@@ -25,23 +25,10 @@ public class IsoRasterSearchParameters {
     private TravelRangeType rangeType = TravelRangeType.TIME;
     private double[] ranges;
     private RouteSearchParameters parameters;
-    private String calcMethod;
-    private float smoothingFactor = -1.0f;
-    private String[] attributes;
     private String units;
-    private String areaUnits;
-    private Rasterizer rasterizer;
-
-    public boolean hasAttribute(String attr) {
-        if (attributes == null || attr == null)
-            return false;
-
-        for (String attribute : attributes)
-            if (attr.equalsIgnoreCase(attribute))
-                return true;
-
-        return false;
-    }
+    private double precession;
+    private String crs;
+    private String consumerType;
 
     public IsoRasterSearchParameters(int travellerId, Coordinate location, double[] ranges) {
         this.travellerId = travellerId;
@@ -100,14 +87,6 @@ public class IsoRasterSearchParameters {
         }
     }
 
-    public float getSmoothingFactor() {
-        return smoothingFactor;
-    }
-
-    public void setSmoothingFactor(float smoothingFactor) {
-        this.smoothingFactor = smoothingFactor;
-    }
-
     public RouteSearchParameters getRouteParameters() {
         return parameters;
     }
@@ -116,49 +95,45 @@ public class IsoRasterSearchParameters {
         this.parameters = parameters;
     }
 
-    public String getCalcMethod() {
-        return calcMethod;
-    }
-
-    public void setCalcMethod(String calcMethod) {
-        this.calcMethod = calcMethod;
-    }
-
-    public void setAttributes(String[] attributes) {
-        this.attributes = attributes;
-    }
-
     public void setUnits(String units) {
         this.units = units;
-    }
-
-    public void setAreaUnits(String areaUnits) {
-        this.areaUnits = areaUnits;
     }
 
     public String getUnits() {
         return units;
     }
 
-    public String getAreaUnits() {
-        return areaUnits;
-    }
-
-    public String[] getAttributes() {
-        return attributes;
-    }
-
     public boolean isTimeDependent() {
         return (getRouteParameters().isTimeDependent());
     }
 
-    public Rasterizer getRasterizer()
+    public void setPrecession(double precession)
     {
-        return this.rasterizer;
+        this.precession = precession;
     }
 
-    public void setRasterizer(Rasterizer rasterizer)
+    public double getPrecession()
     {
-        this.rasterizer = rasterizer;
+        return this.precession;
+    }
+
+    public void setCrs(String crs)
+    {
+        this.crs = crs;
+    }
+
+    public String getCrs()
+    {
+        return this.crs;
+    }
+
+    public void setConsumerType(String consumerType)
+    {
+        this.consumerType = consumerType;
+    }
+
+    public String getConsumerType()
+    {
+        return this.consumerType;
     }
 }

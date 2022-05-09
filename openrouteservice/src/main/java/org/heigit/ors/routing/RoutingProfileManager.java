@@ -28,9 +28,8 @@ import org.heigit.ors.export.ExportRequest;
 import org.heigit.ors.export.ExportResult;
 import org.heigit.ors.isochrones.IsochroneMap;
 import org.heigit.ors.isochrones.IsochroneSearchParameters;
-import org.heigit.ors.isorasters.IsoRasterMap;
 import org.heigit.ors.isorasters.IsoRasterSearchParameters;
-import org.heigit.ors.isorasters.QuadTree;
+import org.heigit.ors.isorasters.IsoRaster;
 import org.heigit.ors.kafka.ORSKafkaConsumerMessageSpeedUpdate;
 import org.heigit.ors.mapmatching.MapMatchingRequest;
 import org.heigit.ors.matrix.MatrixErrorCodes;
@@ -644,12 +643,12 @@ public class RoutingProfileManager {
         return rp.buildIsochrone(parameters);
     }
 
-    public QuadTree buildMultiGraph(IsoRasterSearchParameters parameters) throws Exception {
+    public IsoRaster buildIsoRaster(IsoRasterSearchParameters parameters) throws Exception {
 
         int profileType = parameters.getRouteParameters().getProfileType();
         RoutingProfile rp = routeProfiles.getRouteProfile(profileType, false);
 
-        return rp.buildMultiGraph(parameters);
+        return rp.buildIsoRaster(parameters);
     }
 
     public MatrixResult computeMatrix(MatrixRequest req) throws Exception {

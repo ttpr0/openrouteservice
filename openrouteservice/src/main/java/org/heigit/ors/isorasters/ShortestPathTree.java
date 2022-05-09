@@ -126,7 +126,7 @@ public class ShortestPathTree extends AbstractRoutingAlgorithm {
         this.limit = limit;
     }
 
-    public void search(int from, final Consumer<IsoLabel> consumer) {
+    public void search(int from, final IsoRasterConsumer consumer) {
         checkAlreadyRun();
         IsoLabel currentLabel = new IsoLabel(from, -1, 0, 0, 0, null);
         queueByWeighting.add(currentLabel);

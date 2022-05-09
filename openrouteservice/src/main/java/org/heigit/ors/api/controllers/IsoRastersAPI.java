@@ -12,6 +12,7 @@ import org.heigit.ors.exceptions.*;
 import org.heigit.ors.isochrones.IsochroneMapCollection;
 import org.heigit.ors.isochrones.IsochronesErrorCodes;
 import org.heigit.ors.isorasters.IsoRasterMap;
+import org.heigit.ors.api.responses.isoraster.IsoRasterGridResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -23,7 +24,7 @@ import javax.servlet.http.HttpServletResponse;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/v2/shortestpathtree")
+@RequestMapping("/v2/isoraster")
 public class IsoRastersAPI {
     static final CommonResponseEntityExceptionHandler errorHandler = new CommonResponseEntityExceptionHandler(IsochronesErrorCodes.BASE);
 
@@ -46,21 +47,31 @@ public class IsoRastersAPI {
 
     // Functional request methods
     @PostMapping(value = "/{profile}", produces = "application/geo+json;charset=UTF-8")
-    public IsoRasterMap getDefaultIsochrones(
+    public Object getDefaultIsoRaster(
             @PathVariable APIEnums.Profile profile,
             @RequestBody IsoRastersRequest request) throws Exception {
-        return getGeoJsonIsochrones(profile, request);
+        return getGeoJSONIsoRaster(profile, request);
     }
 
     @PostMapping(value = "/{profile}/geojson", produces = "application/geo+json;charset=UTF-8")
-    public IsoRasterMap getGeoJsonIsochrones(
+    public Object getGeoJSONIsoRaster(
             @PathVariable APIEnums.Profile profile,
             @RequestBody IsoRastersRequest request) throws Exception {
         request.setProfile(profile);
-        request.setResponseType(APIEnums.RouteResponseType.GEOJSON);
+        request.setResponseType("GEOJSON");
 
-        return request.generateMultiGraphFromRequest();
+        return request.generateIsoRasterFromRequest();
         //IsochroneMapCollection isoMaps = request.getIsoMaps();
         //return profile;
+    }
+
+    @PostMapping(value = "/{profile}/raster", produces = "application/geo+json;charset=UTF-8")
+    public Object getGridIsoRaster(
+            @PathVariable APIEnums.Profile profile,
+            @RequestBody IsoRastersRequest request) throws Exception {
+        request.setProfile(profile);
+        request.setResponseType("GRID");
+
+        return request.generateIsoRasterFromRequest();
     }
 }

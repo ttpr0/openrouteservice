@@ -55,7 +55,7 @@ import org.heigit.ors.mapmatching.MapMatcher;
 import org.heigit.ors.isorasters.IsoRasterBuilder;
 import org.heigit.ors.isorasters.IsoRasterMap;
 import org.heigit.ors.isorasters.IsoRasterSearchParameters;
-import org.heigit.ors.isorasters.QuadTree;
+import org.heigit.ors.isorasters.IsoRaster;
 import org.heigit.ors.isorasters.Rasterizer;
 import org.heigit.ors.matrix.*;
 import org.heigit.ors.matrix.algorithms.core.CoreMatrixAlgorithm;
@@ -1431,13 +1431,13 @@ public class RoutingProfile {
         return result;
     }
 
-    public QuadTree buildMultiGraph(IsoRasterSearchParameters parameters) throws Exception {
-        QuadTree result;
+    public IsoRaster buildIsoRaster(IsoRasterSearchParameters parameters) throws Exception {
+        IsoRaster result;
         waitForUpdateCompletion();
         beginUseGH();
         try {
             RouteSearchContext searchCntx = createSearchContext(parameters.getRouteParameters());
-            IsoRasterBuilder builder = new IsoRasterBuilder(searchCntx, parameters.getRasterizer());
+            IsoRasterBuilder builder = new IsoRasterBuilder(searchCntx);
             result = builder.compute(parameters);
             endUseGH();
         } catch (Exception ex) {

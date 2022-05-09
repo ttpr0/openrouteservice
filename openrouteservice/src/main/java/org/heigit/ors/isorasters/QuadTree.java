@@ -2,6 +2,7 @@ package org.heigit.ors.isorasters;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 public class QuadTree {
     QuadNode root;
@@ -87,21 +88,21 @@ public class QuadTree {
     public List<QuadNode> toList()
     {
         ArrayList<QuadNode> nodes = new ArrayList<>();
-        traverse(root, nodes);
+        traverse(root, (QuadNode node) -> { nodes.add(node); return 0;});
         return nodes;
     }
 
-    private void traverse(QuadNode node, List<QuadNode> nodes)
+    private void traverse(QuadNode node, Function<QuadNode,Integer> func)
     {
         if  (node == null)
         {
             return;
         }
-        nodes.add(node);
-        traverse(node.child1, nodes);
-        traverse(node.child2, nodes);
-        traverse(node.child3, nodes);
-        traverse(node.child4, nodes);
+        func.apply(node);
+        traverse(node.child1, func);
+        traverse(node.child2, func);
+        traverse(node.child3, func);
+        traverse(node.child4, func);
     }
 
     public void mergeQuadNodes(List<QuadNode> nodes)
@@ -110,5 +111,30 @@ public class QuadTree {
         {
             this.insert(node.x, node.y, node.value);
         }
+    }
+
+    /**
+     * calculates Bounding-Box of Quadtree entries
+     * @return int[] containing four items: [minX, maxX, minY, maxY]
+     */
+    public int[] getBoundingBox()
+    {
+        int[] bb = new int[4];
+        bb[0] = root.x;
+        bb[1] = root.x;
+        bb[2] = root.y;
+        bb[3] = root.y;
+        traverse(root, (QuadNode node) -> { 
+            if (node.x < bb[0])
+                bb[0] = node.x;
+            if (node.x > bb[1])
+                bb[1] = node.x;
+            if (node.y < bb[2])
+                bb[2] = node.y;
+            if (node.y > bb[3])
+                bb[3] = node.y;
+            return 0;
+        });
+        return bb;
     }
 }

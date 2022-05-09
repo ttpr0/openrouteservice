@@ -22,6 +22,7 @@ import org.heigit.ors.isochrones.*;
 import org.heigit.ors.isorasters.GeoJsonFeature;
 import org.heigit.ors.isorasters.GeoJsonPoint;
 import org.heigit.ors.isorasters.GeoJsonPolygon;
+import org.heigit.ors.isorasters.IsoRaster;
 import org.heigit.ors.isorasters.IsoRasterMap;
 import org.heigit.ors.isorasters.IsoRasterRequest;
 import org.heigit.ors.isorasters.IsoRasterSearchParameters;
@@ -34,7 +35,10 @@ import org.heigit.ors.routing.RoutingProfileManager;
 import org.heigit.ors.routing.RoutingProfileType;
 import org.heigit.ors.config.IsochronesServiceSettings;
 import org.heigit.ors.util.DistanceUnitUtil;
+import org.springframework.http.ResponseEntity;
 import org.heigit.ors.api.requests.isochrones.IsochronesRequestEnums;
+import org.heigit.ors.api.responses.isoraster.IsoRasterGeoJSONResponse;
+import org.heigit.ors.api.responses.isoraster.IsoRasterGridResponse;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -49,18 +53,14 @@ import static org.heigit.ors.api.requests.isochrones.IsochronesRequestEnums.Calc
 public class IsoRastersRequest extends APIRequest {
     public static final String PARAM_LOCATIONS = "locations";
     public static final String PARAM_LOCATION_TYPE = "location_type";
-    public static final String PARAM_OPTIONS = "options";
     public static final String PARAM_RANGE = "range";
     public static final String PARAM_RANGE_TYPE = "range_type";
     public static final String PARAM_RANGE_UNITS = "units";
-    public static final String PARAM_AREA_UNITS = "area_units";
     public static final String PARAM_INTERSECTIONS = "intersections";
-    public static final String PARAM_ATTRIBUTES = "attributes";
-    public static final String PARAM_INTERVAL = "interval";
-    public static final String PARAM_SMOOTHING = "smoothing";
     public static final String PARAM_TIME = "time";
     public static final String PARAM_PRECESSION = "precession";
     public static final String PARAM_CRS = "crs";
+    public static final String PARAM_CONSUMER_TYPE = "consumer_type";
 
 
     @ApiModelProperty(name = PARAM_LOCATIONS, value = "The locations to use for the route as an array of `longitude/latitude` pairs",
@@ -105,25 +105,8 @@ public class IsoRastersRequest extends APIRequest {
     @JsonIgnore
     private boolean hasRangeUnits = false;
 
-    @ApiModelProperty(name = PARAM_OPTIONS,
-            value = "Additional options for the isochrones request",
-            example = "{\"avoid_borders\":\"all\"}")
-    @JsonProperty(PARAM_OPTIONS)
-    private RouteRequestOptions isochronesOptions;
-    @JsonIgnore
-    private boolean hasOptions = false;
-
     @ApiModelProperty(hidden = true)
-    private APIEnums.RouteResponseType responseType = APIEnums.RouteResponseType.GEOJSON;
-
-    @ApiModelProperty(name = PARAM_AREA_UNITS,
-            value = "Specifies the area unit.\n" +
-                    "Default: m. " +
-                    "CUSTOM_KEYS:{'apiDefault':'m','validWhen':{'ref':'attributes','value':'area'}}")
-    @JsonProperty(value = PARAM_AREA_UNITS)
-    private APIEnums.Units areaUnit;
-    @JsonIgnore
-    private boolean hasAreaUnits = false;
+    private String responseType = "GRID";
 
     @ApiModelProperty(name = PARAM_INTERSECTIONS,
             value = "Specifies whether to return intersecting polygons. " +
@@ -132,36 +115,6 @@ public class IsoRastersRequest extends APIRequest {
     private boolean intersections;
     @JsonIgnore
     private boolean hasIntersections = false;
-
-    @ApiModelProperty(name = PARAM_ATTRIBUTES, value = "List of isochrones attributes",
-            example = "[\"area\"]")
-    @JsonProperty(PARAM_ATTRIBUTES)
-    private IsochronesRequestEnums.Attributes[] attributes;
-    @JsonIgnore
-    private boolean hasAttributes = false;
-
-    @ApiModelProperty(name = PARAM_INTERVAL, value = "Interval of isochrones or equidistants. This is only used if a single range value is given. " +
-            "Value in **seconds** for time and **meters** for distance.",
-            example = "30"
-    )
-    @JsonProperty(PARAM_INTERVAL)
-    private Double interval;
-    @JsonIgnore
-    private boolean hasInterval = false;
-
-    @ApiModelProperty(name = PARAM_SMOOTHING,
-            value = "Applies a level of generalisation to the isochrone polygons generated as a `smoothing_factor` between `0` and `100.0`.\n" +
-                    "Generalisation is produced by determining a maximum length of a connecting line between two points found on the outside of a containing polygon.\n" +
-                    "If the distance is larger than a threshold value, the line between the two points is removed and a smaller connecting line between other points is used.\n" +
-                    "Note that the minimum length of this connecting line is ~1333m, and so when the `smoothing_factor` results in a distance smaller than this, the minimum value is used.\n" +
-                    "The threshold value is determined as `(maximum_radius_of_isochrone / 100) * smoothing_factor`.\n" +
-                    "Therefore, a value closer to 100 will result in a more generalised shape.\n" +
-                    "The polygon generation algorithm is based on Duckham and al. (2008) `\"Efficient generation of simple polygons for characterizing the shape of a set of points in the plane.\"`",
-            example = "25")
-    @JsonProperty(value = PARAM_SMOOTHING)
-    private Double smoothing;
-    @JsonIgnore
-    private boolean hasSmoothing = false;
 
     @ApiModelProperty(name = PARAM_TIME, value = "Departure date and time provided in local time zone" +
             "CUSTOM_KEYS:{'validWhen':{'ref':'arrival','valueNot':['*']}}",
@@ -186,6 +139,11 @@ public class IsoRastersRequest extends APIRequest {
     @JsonIgnore
     private boolean hasCrs = false;
 
+    @JsonProperty(value = PARAM_CONSUMER_TYPE)
+    private IsoRastersRequestEnums.ConsumerType consumerType;
+    @JsonIgnore
+    private boolean hasConsumerType = false;
+
     @JsonIgnore
     Rasterizer rasterizer;
 
@@ -209,37 +167,11 @@ public class IsoRastersRequest extends APIRequest {
         }
     }
 
-    public APIEnums.Units getAreaUnit() {
-        return areaUnit;
-    }
-
-    public void setAreaUnit(APIEnums.Units areaUnit) {
-        this.areaUnit = areaUnit;
-        hasAreaUnits = true;
-    }
-
-    public boolean hasAreaUnits() {
-        return hasAreaUnits;
-    }
-
-    public Double getSmoothing() {
-        return smoothing;
-    }
-
-    public void setSmoothing(Double smoothing) {
-        this.smoothing = smoothing;
-        this.hasSmoothing = true;
-    }
-
-    public boolean hasSmoothing() {
-        return hasSmoothing;
-    }
-
-    public APIEnums.RouteResponseType getResponseType() {
+    public String getResponseType() {
         return responseType;
     }
 
-    public void setResponseType(APIEnums.RouteResponseType responseType) {
+    public void setResponseType(String responseType) {
         this.responseType = responseType;
     }
 
@@ -269,19 +201,6 @@ public class IsoRastersRequest extends APIRequest {
         return hasRangeUnits;
     }
 
-    public IsochronesRequestEnums.Attributes[] getAttributes() {
-        return attributes;
-    }
-
-    public void setAttributes(IsochronesRequestEnums.Attributes[] attributes) {
-        this.attributes = attributes;
-        this.hasAttributes = true;
-    }
-
-    public boolean hasAttributes() {
-        return hasAttributes;
-    }
-
     public Double[][] getLocations() {
         return locations;
     }
@@ -308,19 +227,6 @@ public class IsoRastersRequest extends APIRequest {
         return hasLocationType;
     }
 
-    public RouteRequestOptions getIsochronesOptions() {
-        return isochronesOptions;
-    }
-
-    public void setIsochronesOptions(RouteRequestOptions isochronesOptions) {
-        this.isochronesOptions = isochronesOptions;
-        this.hasOptions = true;
-    }
-
-    public boolean hasOptions() {
-        return this.hasOptions;
-    }
-
     public List<Double> getRange() {
         return range;
     }
@@ -345,19 +251,6 @@ public class IsoRastersRequest extends APIRequest {
 
     public boolean hasRangeType() {
         return hasRangeType;
-    }
-
-    public Double getInterval() {
-        return interval;
-    }
-
-    public void setInterval(Double interval) {
-        this.interval = interval;
-        hasInterval = true;
-    }
-
-    public boolean hasInterval() {
-        return hasInterval;
     }
 
     public LocalDateTime getTime() {
@@ -391,69 +284,37 @@ public class IsoRastersRequest extends APIRequest {
         return hasCrs;
     }
 
-    public IsoRasterMap generateMultiGraphFromRequest() throws Exception {
-        this.rasterRequest = this.convertIsochroneRequest();
+    public void setConsumerType(IsoRastersRequestEnums.ConsumerType consumerType) {
+        this.consumerType = consumerType;
+        hasConsumerType = true;
+    }
+
+    public boolean hasConsumerType() {
+        return hasConsumerType;
+    }
+
+    public Object generateIsoRasterFromRequest() throws Exception {
+        this.rasterRequest = this.convertIsoRasterRequest();
         // request object is built, now check if ors config allows all settings
         List<TravellerInfo> travellers = this.rasterRequest.getTravellers();
     
         // TODO where should we put the validation code?
         validateAgainstConfig(this.rasterRequest, travellers);
     
-        List<QuadTree> trees = new LinkedList<QuadTree>();
+        List<IsoRaster> rasters = new LinkedList<IsoRaster>();
         if (!travellers.isEmpty()) {
     
             for (int i = 0; i < travellers.size(); ++i) {
                 IsoRasterSearchParameters searchParams = this.rasterRequest.getSearchParameters(i);
-                QuadTree tree = RoutingProfileManager.getInstance().buildMultiGraph(searchParams);
-                trees.add(tree);
+                IsoRaster raster = RoutingProfileManager.getInstance().buildIsoRaster(searchParams);
+                rasters.add(raster);
             }
-    
         }
-        QuadTree tree = trees.get(0);
-        for (int i=1; i<trees.size(); i++)
-        {
-            tree.mergeQuadNodes(trees.get(i).toList());
-        }
-        List<QuadNode> nodelist = tree.toList();
-        // GeoJsonPoint[] points = new GeoJsonPoint[nodelist.size()];
-        // for (int i=0; i<points.length; i++) 
-        // {
-        //     QuadNode node = nodelist.get(i);
-        //     points[i] = new GeoJsonPoint(node.value, new Coordinate(Utility.indexToCoord(node.x), Utility.indexToCoord(node.y)));
-        // }
-        GeoJsonFeature[] points = new GeoJsonPolygon[nodelist.size()];
-        Rasterizer rasterizer = rasterRequest.getRasterizer();
-        for (int i=0; i<points.length; i++) 
-        {
-            QuadNode node = nodelist.get(i);
-            Double[][][] p = new Double[1][5][2];
-            double[] r = {node.x, node.y};
-            double[] or = {node.x + 1, node.y + 1};
-            rasterizer.indexToCoord(r);
-            rasterizer.indexToCoord(or);
-            p[0][0][0] = r[0];
-            p[0][0][1] = r[1];
-            p[0][1][0] = or[0];
-            p[0][1][1] = r[1];
-            p[0][2][0] = or[0];
-            p[0][2][1] = or[1];
-            p[0][3][0] = r[0];
-            p[0][3][1] = or[1];
-            p[0][4][0] = r[0];
-            p[0][4][1] = r[1];
-            points[i] = new GeoJsonPolygon(node.value, p);
-        }
-        IsoRasterMap multimap = new IsoRasterMap(points);
-        return multimap;
-    }
 
-    Float convertSmoothing(Double smoothingValue) throws ParameterValueException {
-        float f = (float) smoothingValue.doubleValue();
-
-        if (smoothingValue < 0 || smoothingValue > 100)
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_SMOOTHING, smoothingValue.toString());
-
-        return f;
+        if (responseType == "GRID")
+            return new IsoRasterGridResponse(rasters, this.crs, this.precession, true);
+        else
+            return new IsoRasterGeoJSONResponse(rasters, this.crs, this.precession, true);
     }
 
     String convertLocationType(IsochronesRequestEnums.LocationType locationType) throws ParameterValueException {
@@ -491,21 +352,6 @@ public class IsoRastersRequest extends APIRequest {
 
     }
 
-    String convertAreaUnit(APIEnums.Units unitsIn) throws ParameterValueException {
-
-        DistanceUnit convertedAreaUnit;
-        try {
-            convertedAreaUnit = DistanceUnitUtil.getFromString(unitsIn.toString(), DistanceUnit.UNKNOWN);
-            if (convertedAreaUnit == DistanceUnit.UNKNOWN)
-                throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_AREA_UNITS, unitsIn.toString());
-
-            return DistanceUnitUtil.toString(convertedAreaUnit);
-
-        } catch (Exception e) {
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_AREA_UNITS, unitsIn.toString());
-        }
-    }
-
     String convertRangeUnit(APIEnums.Units unitsIn) throws ParameterValueException {
 
         DistanceUnit units;
@@ -533,7 +379,7 @@ public class IsoRastersRequest extends APIRequest {
         return realCoordinate;
     }
 
-    IsoRasterRequest convertIsochroneRequest() throws Exception {
+    IsoRasterRequest convertIsoRasterRequest() throws Exception {
         IsoRasterRequest convertedIsochroneRequest = new IsoRasterRequest();
 
 
@@ -544,33 +390,29 @@ public class IsoRastersRequest extends APIRequest {
             try {
                 convertedIsochroneRequest.addTraveller(travellerInfo);
             } catch (Exception ex) {
-                throw new InternalServerException(IsochronesErrorCodes.UNKNOWN, IsoRastersRequest.PARAM_INTERVAL);
+                throw new InternalServerException(IsochronesErrorCodes.UNKNOWN, IsoRastersRequest.PARAM_RANGE);
             }
         }
         if (this.hasId())
             convertedIsochroneRequest.setId(this.getId());
         if (this.hasRangeUnits())
             convertedIsochroneRequest.setUnits(convertRangeUnit(rangeUnit));
-        if (this.hasAreaUnits())
-            convertedIsochroneRequest.setAreaUnits(convertAreaUnit(areaUnit));
-        if (this.hasAttributes())
-            convertedIsochroneRequest.setAttributes(convertAttributes(attributes));
-        if (this.hasSmoothing())
-            convertedIsochroneRequest.setSmoothingFactor(convertSmoothing(smoothing));
         if (this.hasIntersections())
             convertedIsochroneRequest.setIncludeIntersections(intersections);
-        if (this.hasOptions())
-            convertedIsochroneRequest.setCalcMethod(convertCalcMethod(CONCAVE_BALLS));
+        if (this.hasPrecession())
+            convertedIsochroneRequest.setPrecession(this.precession);
         else
-            convertedIsochroneRequest.setCalcMethod(convertCalcMethod(FASTISOCHRONE));
-        convertedIsochroneRequest.setRasterizer(constructRasterizer());
+            convertedIsochroneRequest.setPrecession(0.01);
+        if (this.hasCrs())
+            convertedIsochroneRequest.setCrs(this.crs);
+        else
+            convertedIsochroneRequest.setCrs("4326");
+        if (this.hasConsumerType())
+            convertedIsochroneRequest.setConsumerType(this.consumerType.toString());
+        else
+            convertedIsochroneRequest.setConsumerType("node_based");
         return convertedIsochroneRequest;
 
-    }
-
-    Rasterizer constructRasterizer()
-    {
-        return new Rasterizer(hasPrecession() ? this.precession : 0.05, hasCrs() ? this.crs : "4326");
     }
 
     TravellerInfo constructTravellerInfo(Double[] coordinate) throws Exception {
@@ -589,8 +431,7 @@ public class IsoRastersRequest extends APIRequest {
             throw new ParameterValueException(IsochronesErrorCodes.MISSING_PARAMETER, IsoRastersRequest.PARAM_RANGE);
         }
         List<Double> rangeValues = range;
-        Double intervalValue = interval;
-        setRangeAndIntervals(travellerInfo, rangeValues, intervalValue);
+        setRangeAndIntervals(travellerInfo, rangeValues);
         return travellerInfo;
     }
 
@@ -607,9 +448,6 @@ public class IsoRastersRequest extends APIRequest {
             throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, IsoRastersRequest.PARAM_PROFILE);
         routeSearchParameters.setProfileType(profileType);
 
-        if (this.hasOptions()) {
-            routeSearchParameters = this.processIsochronesRequestOptions(routeSearchParameters);
-        }
         if (this.hasTime()) {
             routeSearchParameters.setDeparture(this.getTime());
             routeSearchParameters.setArrival(this.getTime());
@@ -618,37 +456,20 @@ public class IsoRastersRequest extends APIRequest {
         return routeSearchParameters;
     }
 
-    RouteSearchParameters processIsochronesRequestOptions(RouteSearchParameters parameters) throws StatusCodeException {
-        RouteRequestOptions options = isochronesOptions;
-        parameters = this.processRequestOptions(options, parameters);
-        if (options.hasProfileParams())
-            parameters.setProfileParams(convertParameters(options, parameters.getProfileType()));
-        return parameters;
-    }
-
     void validateAgainstConfig(IsoRasterRequest isochroneRequest, List<TravellerInfo> travellers) throws StatusCodeException {
-
-        if (!IsochronesServiceSettings.getAllowComputeArea() && isochroneRequest.hasAttribute("area"))
-            throw new StatusCodeException(StatusCode.BAD_REQUEST, IsochronesErrorCodes.FEATURE_NOT_SUPPORTED, "Area computation is not enabled.");
-
         if (travellers.size() > IsochronesServiceSettings.getMaximumLocations())
             throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, IsoRastersRequest.PARAM_LOCATIONS, Integer.toString(travellers.size()), Integer.toString(IsochronesServiceSettings.getMaximumLocations()));
 
         for (TravellerInfo traveller : travellers) {
-            int maxAllowedRange = IsochronesServiceSettings.getMaximumRange(traveller.getRouteSearchParameters().getProfileType(), isochroneRequest.getCalcMethod(), traveller.getRangeType());
+            int maxAllowedRange = IsochronesServiceSettings.getMaximumRange(traveller.getRouteSearchParameters().getProfileType(), "fastisochrone", traveller.getRangeType());
             double maxRange = traveller.getMaximumRange();
             if (maxRange > maxAllowedRange)
                 throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, IsoRastersRequest.PARAM_RANGE, Double.toString(maxRange), Integer.toString(maxAllowedRange));
-
-            int maxIntervals = IsochronesServiceSettings.getMaximumIntervals();
-            if (maxIntervals > 0 && maxIntervals < traveller.getRanges().length) {
-                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MINIMUM, IsoRastersRequest.PARAM_INTERVAL, "Resulting number of " + traveller.getRanges().length + " isochrones exceeds maximum value of " + maxIntervals + ".");
-            }
         }
 
     }
 
-    void setRangeAndIntervals(TravellerInfo travellerInfo, List<Double> rangeValues, Double intervalValue) throws ParameterValueException, ParameterOutOfRangeException {
+    void setRangeAndIntervals(TravellerInfo travellerInfo, List<Double> rangeValues) throws ParameterValueException, ParameterOutOfRangeException {
         double rangeValue = -1;
         if (rangeValues.size() == 1) {
             try {
@@ -669,38 +490,9 @@ public class IsoRastersRequest extends APIRequest {
             Arrays.sort(ranges);
             travellerInfo.setRanges(ranges);
         }
-        // interval, only use if one range is defined
-
-        if (rangeValues.size() == 1 && rangeValue != -1 && intervalValue != null) {
-            if (intervalValue > rangeValue) {
-                throw new ParameterOutOfRangeException(IsochronesErrorCodes.PARAMETER_VALUE_EXCEEDS_MAXIMUM, IsoRastersRequest.PARAM_INTERVAL, Double.toString(intervalValue), Double.toString(rangeValue));
-            }
-            travellerInfo.setRanges(rangeValue, intervalValue);
-        }
     }
 
-    String convertCalcMethod(IsochronesRequestEnums.CalculationMethod bareCalcMethod) throws ParameterValueException {
-        try {
-            switch (bareCalcMethod) {
-                case CONCAVE_BALLS:
-                    return "concaveballs";
-                case GRID:
-                    return "grid";
-                case FASTISOCHRONE:
-                    return "fastisochrone";
-                default:
-                    return "none";
-            }
-        } catch (Exception ex) {
-            throw new ParameterValueException(IsochronesErrorCodes.INVALID_PARAMETER_VALUE, "calc_method");
-        }
-    }
-
-    public IsochroneMapCollection getIsoMaps() {
-        return isoMaps;
-    }
-
-    public IsoRasterRequest getIsochroneRequest() {
+    public IsoRasterRequest getRasterRequest() {
         return rasterRequest;
     }
 }

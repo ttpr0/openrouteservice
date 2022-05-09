@@ -16,63 +16,26 @@ import java.util.Set;
 
 public class IsoRasterRequest extends ServiceRequest {
     private final List<TravellerInfo> travellers;
-    private String calcMethod;
     private String units = null;
-    private String areaUnits = null;
     private boolean includeIntersections = false;
-    private String[] attributes;
-    private float smoothingFactor = -1.0f;
-    private Rasterizer rasterizer;
+    private double precession;
+    private String crs;
+    private String consumerType;
 
     public IsoRasterRequest() {
         travellers = new ArrayList<>();
-    }
-
-    public String getCalcMethod() {
-        return calcMethod;
-    }
-
-    public void setCalcMethod(String calcMethod) {
-        this.calcMethod = calcMethod;
     }
 
     public String getUnits() {
         return units;
     }
 
-    public String getAreaUnits() {
-        return areaUnits;
-    }
-
     public void setUnits(String units) {
         this.units = units.toLowerCase();
     }
 
-    public void setAreaUnits(String areaUnits) {
-        this.areaUnits = areaUnits.toLowerCase();
-    }
-
     public boolean isValid() {
         return !travellers.isEmpty();
-    }
-
-    public String[] getAttributes() {
-        return attributes;
-    }
-
-    public void setAttributes(String[] attributes) {
-        this.attributes = attributes;
-    }
-
-    public boolean hasAttribute(String attr) {
-        if (attributes == null || attr == null)
-            return false;
-
-        for (String attribute : attributes)
-            if (attr.equalsIgnoreCase(attribute))
-                return true;
-
-        return false;
     }
 
     public boolean getIncludeIntersections() {
@@ -87,18 +50,34 @@ public class IsoRasterRequest extends ServiceRequest {
         return travellers.stream().map(TravellerInfo::getLocation).toArray(Coordinate[]::new);
     }
 
-    public void setSmoothingFactor(float smoothingFactor) {
-        this.smoothingFactor = smoothingFactor;
+    public void setPrecession(double precession)
+    {
+        this.precession = precession;
     }
 
-    public void setRasterizer(Rasterizer rasterizer)
+    public double getPrecession()
     {
-        this.rasterizer = rasterizer;
+        return this.precession;
     }
 
-    public Rasterizer getRasterizer()
+    public void setCrs(String crs)
     {
-        return this.rasterizer;
+        this.crs = crs;
+    }
+
+    public String getCrs()
+    {
+        return this.crs;
+    }
+
+    public void setConsumerType(String consumerType)
+    {
+        this.consumerType = consumerType;
+    }
+
+    public String getConsumerType()
+    {
+        return this.consumerType;
     }
 
     public IsoRasterSearchParameters getSearchParameters(int travellerIndex) {
@@ -131,15 +110,13 @@ public class IsoRasterRequest extends ServiceRequest {
         IsoRasterSearchParameters parameters = new IsoRasterSearchParameters(travellerIndex, traveller.getLocation(), ranges);
         parameters.setLocation(traveller.getLocation());
         parameters.setRangeType(traveller.getRangeType());
-        parameters.setCalcMethod(calcMethod);
-        parameters.setAttributes(attributes);
         parameters.setUnits(units);
-        parameters.setAreaUnits(areaUnits);
         parameters.setRouteParameters(traveller.getRouteSearchParameters());
         if ("destination".equalsIgnoreCase(traveller.getLocationType()))
             parameters.setReverseDirection(true);
-        parameters.setSmoothingFactor(smoothingFactor);
-        parameters.setRasterizer(this.rasterizer);
+        parameters.setCrs(crs);
+        parameters.setPrecession(precession);
+        parameters.setConsumerType(consumerType);
         return parameters;
     }
 

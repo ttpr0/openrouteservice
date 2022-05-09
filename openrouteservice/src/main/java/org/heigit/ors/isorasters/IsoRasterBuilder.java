@@ -9,6 +9,8 @@ import org.heigit.ors.routing.graphhopper.extensions.ORSEdgeFilterFactory;
 import org.heigit.ors.routing.graphhopper.extensions.edgefilters.AvoidFeaturesEdgeFilter;
 import org.heigit.ors.routing.graphhopper.extensions.edgefilters.EdgeFilterSequence;
 
+import scala.annotation.meta.param;
+
 import com.graphhopper.util.*;
 import com.vividsolutions.jts.geom.*;
 import com.graphhopper.routing.util.EdgeFilter;
@@ -33,16 +35,15 @@ public class IsoRasterBuilder {
     private List<Coordinate> prevIsoPoints = null;
     private PointItemVisitor visitor = null;
     private TreeSet<Coordinate> treeSet;
-    private IsoRasterConsumer consumer;
     private RouteSearchContext searchcontext;
 
-    public IsoRasterBuilder(RouteSearchContext searchContext, Rasterizer rasterizer)
+    public IsoRasterBuilder(RouteSearchContext searchContext)
     {
         this.searchcontext = searchContext;
-        this.consumer = new IsoRasterConsumer<ShortestPathTree.IsoLabel>(rasterizer);
     }
 
-    public QuadTree compute(IsoRasterSearchParameters parameters) throws Exception {
+    public IsoRaster compute(IsoRasterSearchParameters parameters) throws Exception {
+
         Graph graph = searchcontext.getGraphHopper().getGraphHopperStorage().getBaseGraph();
         Weighting weighting = IsochroneWeightingFactory.createIsochroneWeighting(searchcontext, parameters.getRangeType());
 
@@ -52,13 +53,19 @@ public class IsoRasterBuilder {
         QueryResult res = searchcontext.getGraphHopper().getLocationIndex().findClosest(loc.y, loc.x, edgeFilterSequence);
         int from = res.getClosestNode();
         double[] ranges = parameters.getRanges();
-        this.consumer.setNodeAcess(graph.getNodeAccess());
+
+        IsoRasterConsumer consumer;
+        if (parameters.getConsumerType() == "edge_based")
+            consumer = new IsoRasterEdgeConsumer(new Rasterizer(parameters.getPrecession(), parameters.getCrs(), false));
+        else
+            consumer = new IsoRasterNodeConsumer(new Rasterizer(parameters.getPrecession(), parameters.getCrs(), false));
+        consumer.setGraphAccess(graph);
 
         ShortestPathTree alg = new ShortestPathTree(graph, weighting, true, TraversalMode.EDGE_BASED);
         alg.setTimeLimit(ranges[ranges.length-1]);
-        alg.search(from, this.consumer);
+        alg.search(from, consumer);
         
-        return this.consumer.getTree();
+        return new IsoRaster(consumer.getTree(), parameters.getCrs(), parameters.getPrecession());
     }
 
     private EdgeFilterSequence getEdgeFilterSequence(ORSEdgeFilterFactory edgeFilterFactory) throws Exception {

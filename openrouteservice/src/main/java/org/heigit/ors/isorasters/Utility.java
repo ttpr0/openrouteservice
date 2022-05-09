@@ -53,14 +53,4 @@ public class Utility {
 //        final int origEdgeId = reverse ? edgeState.getOrigEdgeLast() : edgeState.getOrigEdgeFirst();
         return edgeMillis;
     }
-
-    public static int coordToIndex(double x)
-    {
-        return (int)(x*200);
-    }
-
-    public static double indexToCoord(int x)
-    {
-        return ((double)x)/200;
-    }
 }
