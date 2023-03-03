@@ -5,7 +5,7 @@ import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.graphhopper.coll.GHIntObjectHashMap;
 import com.graphhopper.routing.AbstractRoutingAlgorithm;
 import com.graphhopper.routing.Path;
-import com.graphhopper.routing.profiles.BooleanEncodedValue;
+import com.graphhopper.routing.ev.BooleanEncodedValue;
 import com.graphhopper.routing.util.TraversalMode;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
@@ -13,7 +13,7 @@ import com.graphhopper.util.EdgeExplorer;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.GHUtility;
-import com.vividsolutions.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Coordinate;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,7 +34,7 @@ public class Utility {
     }
 
     public static double calcWeightWithTurnWeight(Weighting weighting, EdgeIteratorState edgeState, boolean reverse, int prevOrNextEdgeId) {
-        final double edgeWeight = weighting.calcWeight(edgeState, reverse, prevOrNextEdgeId);
+        final double edgeWeight = weighting.calcEdgeWeight(edgeState, reverse, prevOrNextEdgeId);
         if (!EdgeIterator.Edge.isValid(prevOrNextEdgeId)) {
             return edgeWeight;
         }
@@ -44,7 +44,7 @@ public class Utility {
      * @see #calcWeightWithTurnWeight(Weighting, EdgeIteratorState, boolean, int)
      */
     public static long calcMillisWithTurnMillis(Weighting weighting, EdgeIteratorState edgeState, boolean reverse, int prevOrNextEdgeId) {
-        long edgeMillis = weighting.calcMillis(edgeState, reverse, prevOrNextEdgeId);
+        long edgeMillis = weighting.calcEdgeMillis(edgeState, reverse, prevOrNextEdgeId);
         if (!EdgeIterator.Edge.isValid(prevOrNextEdgeId)) {
             return edgeMillis;
         }

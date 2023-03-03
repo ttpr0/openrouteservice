@@ -8,8 +8,9 @@ import java.util.function.Consumer;
 
 import com.graphhopper.storage.Graph;
 import com.graphhopper.util.EdgeIteratorState;
+import com.graphhopper.util.FetchMode;
 import com.graphhopper.util.PointList;
-import com.vividsolutions.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Coordinate;
 
 public class IsoRasterEdgeConsumer implements IsoRasterConsumer {
 
@@ -35,9 +36,9 @@ public class IsoRasterEdgeConsumer implements IsoRasterConsumer {
 
         EdgeIteratorState egde = graph.getEdgeIteratorState(label.edge, label.node);
 
-        PointList points = egde.fetchWayGeometry(2);
+        PointList points = egde.fetchWayGeometry(FetchMode.ALL);
 
-        for (int i=0; i< points.getSize(); i++)
+        for (int i=0; i< points.size(); i++)
         {
             double[] point = {points.getLon(i), points.getLat(i)};
             int[] indexes = rasterizer.transform(point);

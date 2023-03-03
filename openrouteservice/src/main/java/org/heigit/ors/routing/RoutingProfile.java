@@ -1450,17 +1450,6 @@ public class RoutingProfile {
         return result;
     }
 
-    public Weighting createTurnWeighting(Graph graph, Weighting weighting, TraversalMode tMode, double uTurnCosts) {
-        if (!(weighting instanceof TurnWeighting)) {
-            FlagEncoder encoder = weighting.getFlagEncoder();
-            if (encoder.supports(TurnWeighting.class) && tMode.isEdgeBased()) {
-                return new TurnWeighting(weighting, HelperORS.getTurnCostExtensions(graph.getExtension()), uTurnCosts);
-            }
-        }
-
-        return weighting;
-    }
-
     public boolean equals(Object o) {
         return o != null && o.getClass().equals(RoutingProfile.class) && this.hashCode() == o.hashCode();
     }

@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 
 import com.graphhopper.storage.Graph;
 import com.graphhopper.storage.NodeAccess;
-import com.vividsolutions.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Coordinate;
 
 public class IsoRasterNodeConsumer implements IsoRasterConsumer {
 

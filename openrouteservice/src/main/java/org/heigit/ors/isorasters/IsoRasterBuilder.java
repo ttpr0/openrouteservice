@@ -2,25 +2,23 @@ package org.heigit.ors.isorasters;
 
 
 import org.heigit.ors.isochrones.IsochroneSearchParameters;
-import org.heigit.ors.isochrones.IsochroneWeightingFactory;
 import org.heigit.ors.routing.AvoidFeatureFlags;
 import org.heigit.ors.routing.RouteSearchContext;
 import org.heigit.ors.routing.graphhopper.extensions.ORSEdgeFilterFactory;
+import org.heigit.ors.routing.graphhopper.extensions.ORSWeightingFactory;
 import org.heigit.ors.routing.graphhopper.extensions.edgefilters.AvoidFeaturesEdgeFilter;
 import org.heigit.ors.routing.graphhopper.extensions.edgefilters.EdgeFilterSequence;
+import org.heigit.ors.isochrones.builders.concaveballs.PointItemVisitor;
+import org.heigit.ors.isorasters.ShortestPathTree;
 
 import scala.annotation.meta.param;
-
 import com.graphhopper.util.*;
-import com.vividsolutions.jts.geom.*;
+import org.locationtech.jts.geom.*;
 import com.graphhopper.routing.util.EdgeFilter;
 import com.graphhopper.routing.util.TraversalMode;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.Graph;
-import org.heigit.ors.isochrones.builders.concaveballs.PointItemVisitor;
-import org.heigit.ors.isorasters.ShortestPathTree;
-
-import com.graphhopper.storage.index.QueryResult;
+import com.graphhopper.storage.index.Snap;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,12 +43,12 @@ public class IsoRasterBuilder {
     public IsoRaster compute(IsoRasterSearchParameters parameters) throws Exception {
 
         Graph graph = searchcontext.getGraphHopper().getGraphHopperStorage().getBaseGraph();
-        Weighting weighting = IsochroneWeightingFactory.createIsochroneWeighting(searchcontext, parameters.getRangeType());
+        Weighting weighting = ORSWeightingFactory.createIsochroneWeighting(searchcontext, parameters.getRangeType());
 
         ORSEdgeFilterFactory edgeFilterFactory = new ORSEdgeFilterFactory();
         Coordinate loc = parameters.getLocation();
         EdgeFilterSequence edgeFilterSequence = getEdgeFilterSequence(edgeFilterFactory);
-        QueryResult res = searchcontext.getGraphHopper().getLocationIndex().findClosest(loc.y, loc.x, edgeFilterSequence);
+        Snap res = searchcontext.getGraphHopper().getLocationIndex().findClosest(loc.y, loc.x, edgeFilterSequence);
         int from = res.getClosestNode();
         double[] ranges = parameters.getRanges();
 

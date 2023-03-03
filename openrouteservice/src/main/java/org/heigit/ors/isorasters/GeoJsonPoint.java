@@ -1,6 +1,6 @@
 package org.heigit.ors.isorasters;
 
-import com.vividsolutions.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Coordinate;
 
 public class GeoJsonPoint extends GeoJsonFeature {
     public String type = "Feature";
