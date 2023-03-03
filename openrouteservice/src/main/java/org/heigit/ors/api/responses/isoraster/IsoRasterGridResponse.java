@@ -1,5 +1,6 @@
 package org.heigit.ors.api.responses.isoraster;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.geotools.referencing.CRS;
@@ -15,15 +16,15 @@ import org.opengis.referencing.operation.MathTransform;
 
 public class IsoRasterGridResponse
 {
-    public String type = "Raster"; 
-    public double[] lowerleft; 
-    public int rows;
-    public int columns;
-    public int[][] values;
+    public String type = "Raster";
+    public double precession;
+    public String crs;
+    public double[] extend;
+    public int[] size;
+    public List<GridFeature> features;
     
     public IsoRasterGridResponse(List<IsoRaster> rasters, String crs, double precession, boolean intersect)
     {
-
         QuadTree tree = rasters.get(0).tree;
         for (int i=1; i<rasters.size(); i++)
         {
@@ -31,16 +32,38 @@ public class IsoRasterGridResponse
         }
         List<QuadNode> nodelist = tree.toList();
         int[] bb  = tree.getBoundingBox();
-        this.lowerleft = new double[] { bb[0]*precession, bb[2]*precession };
-        this.rows = bb[3] - bb[2] + 1;
-        this.columns = bb[1] - bb[0] + 1;
-        this.values = new int[nodelist.size()][3];
-        for (int i=0; i<nodelist.size(); i++) 
+        this.precession = precession;
+        this.crs = crs;
+        this.extend = new double[] { bb[0]*precession, bb[2]*precession, (bb[1]+1)*precession, (bb[3]+1)*precession };
+        this.size = new int[] { bb[1] - bb[0] + 1, bb[3] - bb[2] + 1};
+        this.features = new ArrayList<GridFeature>(nodelist.size());
+        for (int i=0; i<nodelist.size(); i++)
         {
             QuadNode node = nodelist.get(i);
-            values[i][0] = bb[3] - node.y; 
-            values[i][1] = node.x - bb[0]; 
-            values[i][2] = node.value; 
+            double x = (node.x+0.5) * precession;
+            double y = (node.y+0.5) * precession;
+            features.add(new GridFeature((float)x, (float)y, new TempValue(node.value)));
         }
     }
-} 
+}
+
+class TempValue
+{
+    public int range;
+
+    public TempValue(int value) {
+        this.range = value;
+    }
+}
+
+class GridFeature {
+    public float x;
+    public float y;
+    public Object value;
+    
+    public GridFeature(float x, float y, Object value) {
+        this.x = x;
+        this.y = y;
+        this.value = value;
+    }
+}
