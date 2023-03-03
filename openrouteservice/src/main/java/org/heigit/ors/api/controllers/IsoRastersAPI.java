@@ -50,7 +50,7 @@ public class IsoRastersAPI {
     public Object getDefaultIsoRaster(
             @PathVariable APIEnums.Profile profile,
             @RequestBody IsoRastersRequest request) throws Exception {
-        return getGeoJSONIsoRaster(profile, request);
+        return getGridIsoRaster(profile, request);
     }
 
     @PostMapping(value = "/{profile}/geojson", produces = "application/geo+json;charset=UTF-8")
