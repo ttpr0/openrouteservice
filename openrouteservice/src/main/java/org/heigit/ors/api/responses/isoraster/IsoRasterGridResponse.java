@@ -21,10 +21,13 @@ public class IsoRasterGridResponse
     public String crs;
     public double[] extend;
     public int[] size;
+    public double[][] envelope;
     public List<GridFeature> features;
     
     public IsoRasterGridResponse(List<IsoRaster> rasters, String crs, double precession, boolean intersect)
     {
+        Rasterizer rasterizer = new Rasterizer(precession, crs, true);
+
         QuadTree tree = rasters.get(0).tree;
         for (int i=1; i<rasters.size(); i++)
         {
@@ -35,6 +38,19 @@ public class IsoRasterGridResponse
         this.precession = precession;
         this.crs = crs;
         this.extend = new double[] { bb[0]*precession, bb[2]*precession, (bb[1]+1)*precession, (bb[3]+1)*precession };
+        this.envelope = new double[4][2];
+        double[] ll = rasterizer.revtransform(new int[] {bb[0], bb[2]});
+        this.envelope[0][0] = ll[0];
+        this.envelope[0][1] = ll[1];
+        double[] lr = rasterizer.revtransform(new int[] {bb[0], bb[3]+1});
+        this.envelope[1][0] = lr[0];
+        this.envelope[1][1] = lr[1];
+        double[] ul = rasterizer.revtransform(new int[] {bb[1]+1, bb[2]});
+        this.envelope[2][0] = ul[0];
+        this.envelope[2][1] = ul[1];
+        double[] ur = rasterizer.revtransform(new int[] {bb[1]+1, bb[3]+1});
+        this.envelope[3][0] = ur[0];
+        this.envelope[3][1] = ur[1];
         this.size = new int[] { bb[1] - bb[0] + 1, bb[3] - bb[2] + 1};
         this.features = new ArrayList<GridFeature>(nodelist.size());
         for (int i=0; i<nodelist.size(); i++)
